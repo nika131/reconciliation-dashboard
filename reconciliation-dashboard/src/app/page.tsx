@@ -1,3 +1,5 @@
+import { DashboardClient } from "@/components/DashboardClient";
+
 export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-slate-50 p-8">
@@ -7,6 +9,7 @@ export default function DashboardPage() {
           <p className="text-slate-500">Bank transactions vs. Active contracts</p>
         </header>
         
+        <DashboardClient/>
         
       </div>
     </main>

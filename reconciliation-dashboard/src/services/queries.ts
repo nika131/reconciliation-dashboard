@@ -16,25 +16,20 @@ export async function fetchContracts() {
 }
 
 export async function fetchTransactions(filters: DashboardFilters) {
-    const { year, month, status } = filters;
+    const { year, month } = filters;
 
     const targetDate = new Date(year, month - 1)
     const startDateStr = format(startOfMonth(targetDate), 'yyyy-MM-dd')
     const endDateStr = format(endOfMonth(targetDate), 'yyyy-MM-dd')
 
-    let query = supabase
+    const { data, error } = await supabase
         .from('bank_transactions')
         .select('*')
         .gte('entry_date', startDateStr)
         .lte('entry_date', endDateStr)
         .order('entry_date', { ascending: false})
 
-    if (status !== 'all'){
-        query = query.eq('status', status)
-    }
-
-    const { data, error } = await query
     if (error) throw new Error(error.message)
 
-    return z.array(TransactionSchema).parse(data)
+    return z.array(TransactionSchema).parse(data || [])
 }

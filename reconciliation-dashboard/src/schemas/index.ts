@@ -1,14 +1,14 @@
 import { z } from 'zod';
 
 export const CompanySchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   name: z.string(),
   tax_id: z.string(),
 });
 
 export const ContractSchema = z.object({
-  id: z.string().uuid(),
-  company_id: z.string().uuid(),
+  id: z.string(),
+  company_id: z.string(),
   monthly_amount: z.coerce.number(), 
   status: z.enum(['active', 'paused', 'ended']),
   start_date: z.string(),
@@ -16,14 +16,19 @@ export const ContractSchema = z.object({
 });
 
 export const TransactionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   doc_key: z.string(),
   entry_date: z.string(),
   amount: z.coerce.number(),
+  currency: z.string().default('GEL'),
   sender_name: z.string().nullable(),
   sender_inn: z.string().nullable(),
+  sender_account: z.string().nullable(),
+  purpose: z.string().nullable(),
   status: z.enum(['matched', 'unmatched', 'ignored']),
-  matched_company_id: z.string().uuid().nullable(),
+  matched_company_id: z.string().nullable(),
+  match_method: z.string().nullable(),
+  match_confidence: z.coerce.number().nullable(),
 });
 
 export const DashboardFiltersSchema = z.object({
