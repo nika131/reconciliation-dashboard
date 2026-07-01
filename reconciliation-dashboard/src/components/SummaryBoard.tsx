@@ -103,13 +103,13 @@ export function SummaryBoard({ companies, contracts, transactions, year, month }
                                     <div className="text-xs text-slate-500">S/N: {row.taxId}</div>
                                 </td>
                                 <td className="px-4 py-3 text-right tabular-nums text-slate-600">
-                                    {row.expected > 0 ? row.expected.toLocaleString() : '-'}
+                                    {row.expected > 0 ? row.expected.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
                                 </td>
                                 <td className="px-4 py-3 text-right tabular-nums text-slate-600">
-                                    {row.actual > 0 ? row.actual.toLocaleString() : '-'}
+                                    {row.actual > 0 ? row.actual.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
                                 </td>
                                 <td className={`px-4 py-3 text-right tabular-nums ${statusColor}`}>
-                                    {row.difference > 0 ? '+' : ''}{row.difference.toLocaleString()}
+                                    {row.difference > 0 ? '+' : ''}{row.difference.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </td>
                             </tr>
                             );

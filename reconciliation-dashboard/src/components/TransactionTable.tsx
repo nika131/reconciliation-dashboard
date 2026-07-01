@@ -123,7 +123,7 @@ export function TransactionTable({ transactions, companies }: TransactionTablePr
 
                                                     {/* MANUAL MATCH DROPDOWN (Always available as an escape hatch) */}
                                                     <select 
-                                                    className="text-xs border border-slate-300 rounded px-1 py-1 bg-white text-slate-700 w-32 disabled:opacity-50"
+                                                    className="text-xs font-medium border border-slate-300 rounded-md px-2 py-1.5 bg-white text-slate-700 w-40 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
                                                     onChange={(e) => {
                                                         if (e.target.value) {
                                                         updateTx({ id: tx.id, status: 'matched', companyId: e.target.value });
@@ -142,7 +142,7 @@ export function TransactionTable({ transactions, companies }: TransactionTablePr
                                                     <button
                                                     onClick={() => updateTx({ id: tx.id, status: 'ignored' })}
                                                     disabled={isPending}
-                                                    className="text-xs font-medium text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                                                    className="text-xs font-medium border border-slate-300 rounded-md px-2 py-1.5 bg-white text-slate-700 w-40 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
                                                     >
                                                     Ignore
                                                     </button>

@@ -26,7 +26,7 @@ export function suggestCompany(senderName: string | null, companies: Company[]):
   const normalize = (str: string) => {
     return str
       .toLowerCase()
-      .replace(/შპს|სს|შ\.პ\.ს\.|ი\/მ|სსიპ|ა\(ა\)იპ/g, '')
+      .replace(/(?:^|\s)(შპს|სს|შ\.პ\.ს\.|ი\/მ|სსიპ|ა\(ა\)იპ)(?=\s|$)/g, '')
       .replace(/ფილიალი/g, '')
       .replace(/[\(\)\.,-]/g, '')
       .replace(/\s+/g, '') 
@@ -50,7 +50,7 @@ export function suggestCompany(senderName: string | null, companies: Company[]):
     } else {
         score = getSimilarityScore(normalizedSender, normalizedCompany)
     }
-    
+
     if (score > highestScore && score >= SIMILARITY_THRESHOLD) {
       highestScore = score
       bestMatch = company

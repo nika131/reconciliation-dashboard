@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { CompanySchema, ContractSchema, TransactionSchema, DashboardFilters } from '@/schemas';
+import { CompanySchema, ContractSchema, TransactionSchema, DashboardFilters, DashboardFiltersSchema } from '@/schemas';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
 import { z } from 'zod';
 
@@ -16,7 +16,9 @@ export async function fetchContracts() {
 }
 
 export async function fetchTransactions(filters: DashboardFilters) {
-    const { year, month } = filters;
+    const validatedFilters = DashboardFiltersSchema.parse(filters);
+    
+    const { year, month } = validatedFilters
 
     const targetDate = new Date(year, month - 1)
     const startDateStr = format(startOfMonth(targetDate), 'yyyy-MM-dd')

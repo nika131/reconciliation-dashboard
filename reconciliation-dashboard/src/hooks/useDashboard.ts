@@ -59,17 +59,16 @@ export function useUpdateTransaction() {
       // Snapshot of previous value in case we need to roll back
       const previousQueries = queryClient.getQueriesData<Transaction[]>({ queryKey: ['transactions'] });
 
-      queryClient.setQueryData<Transaction[]>(['transactions'], (old) => {
-        if (!old) return old;
-
-        return old.map((t) => 
+      queryClient.setQueriesData<Transaction[]>({ queryKey: ['transactions'] }, (old) => {
+        if (!old) return old
+        return old.map((t) =>
           t.id === newTx.id
             ? { 
-              ...t, 
-              status: newTx.status, 
-              matched_company_id: 'companyId' in newTx ? newTx.companyId : null
-            }
-          : t
+                ...t, 
+                status: newTx.status, 
+                matched_company_id: 'companyId' in newTx ? newTx.companyId : null 
+              }
+            : t
         )
       })
 

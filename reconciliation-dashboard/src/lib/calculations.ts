@@ -6,6 +6,10 @@ export function isContractActiveInMonth(contract: Contract, year: number, month:
   const targetEnd = endOfMonth(new Date(year, month - 1));
   
   const contractStart = parseISO(contract.start_date);
+
+  if ((contract.status === 'paused' || contract.status === 'ended') && !contract.end_date) {
+    return false; 
+  }
   
   // Rule 1: Contract must start on or before the end of the target month
   const startedInTime = isBefore(contractStart, targetEnd) || isEqual(contractStart, targetEnd);

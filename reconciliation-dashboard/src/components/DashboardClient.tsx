@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useCompanies, useContracts, useTransactions, useAutoMatch } from "@/hooks/useDashboard"
 import { DashboardFilters } from "@/schemas"
 import { SummaryBoard } from "./SummaryBoard"
@@ -66,11 +66,11 @@ export function DashboardClient() {
             placeholder="მოძებნე კომპანია ან ს/კ..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="p-2 border border-slate-300 rounded-md bg-slate-50 text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="p-2 border border-slate-300 rounded-md bg-slate-50 text-sm text-slate-900 placeholder:text-slate-400 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
 
           <select 
-            className="p-2 border border-slate-300 rounded-md bg-slate-50 text-sm font-medium"
+            className="p-2 border border-slate-300 rounded-md bg-slate-50 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={filters.month}
             onChange={(e) => setFilters(prev => ({ ...prev, month: Number(e.target.value) }))}
           >
@@ -80,7 +80,7 @@ export function DashboardClient() {
           </select>
 
           <select 
-            className="p-2 border border-slate-300 rounded-md bg-slate-50 text-sm font-medium"
+            className="p-2 border border-slate-300 rounded-md bg-slate-50 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={filters.status}
             onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as DashboardFilters['status'] }))}
           >
