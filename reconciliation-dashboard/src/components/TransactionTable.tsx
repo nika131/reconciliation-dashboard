@@ -104,13 +104,31 @@ export function TransactionTable({ transactions, companies }: TransactionTablePr
 
                                     <td className="px-4 py-3 text-right flex justify-end gap-2">
                                         {tx.status === 'unmatched' && (
-                                            <button
-                                                onClick={() => updateTx({ id: tx.id, status: 'ignored'})}
-                                                disabled={isPending}
-                                                className="text-xs font-medium text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded transition-colors disabled:opacity-50"
-                                            >
-                                                Ignore
-                                            </button>
+                                            <>
+                                                <select
+                                                    className="text-xs border border-slate-300 rounded px-1 py-1 bg-white text-slate-700 w-32"
+                                                    onChange={(e) => {
+                                                        if (e.target.value) {
+                                                            updateTx({ id: tx.id, status: 'matched', companyId: e.target.value })
+                                                        }
+                                                    }}
+                                                    defaultValue=""
+                                                    disabled={isPending}
+                                                >
+                                                    <option value="" disabled>Match to...</option>
+                                                    {companies.map(c => (
+                                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                                    ))}
+                                                </select>
+
+                                                <button
+                                                    onClick={() => updateTx({ id: tx.id, status: 'ignored' })}
+                                                    disabled={isPending}
+                                                    className="text-xs font-medium text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                                                >
+                                                    Ignore
+                                                </button>
+                                            </>
                                         )}
 
                                         

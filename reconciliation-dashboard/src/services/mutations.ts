@@ -8,7 +8,8 @@ export async function runAutoMatching() {
 
 export async function updateTransactionStatus(
     id: string,
-    status: 'matched' | 'unmatched' | 'ignored'
+    status: 'matched' | 'unmatched' | 'ignored',
+    companyId?: string
 ) {
     const updatePayload = status === 'unmatched' || status === 'ignored' 
         ? { 
@@ -19,6 +20,7 @@ export async function updateTransactionStatus(
         }
         : { 
             status, 
+            matched_company_id: companyId,
             match_method: 'manual' 
         }
 
