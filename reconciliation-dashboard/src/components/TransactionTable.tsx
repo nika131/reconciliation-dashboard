@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Transaction, Company } from '@/schemas';
 import { useUpdateTransaction } from '@/hooks/useDashboard';
+import { suggestCompany } from '@/lib/fuzzy';
 
 type SortColumn = 'entry_date' | 'amount';
 type SortDirection = 'asc' | 'desc';
@@ -103,34 +104,51 @@ export function TransactionTable({ transactions, companies }: TransactionTablePr
                                     </td>
 
                                     <td className="px-4 py-3 text-right flex justify-end gap-2">
-                                        {tx.status === 'unmatched' && (
-                                            <>
-                                                <select
-                                                    className="text-xs border border-slate-300 rounded px-1 py-1 bg-white text-slate-700 w-32"
+                                        {tx.status === 'unmatched' && (() => {
+                                            const suggestion = suggestCompany(tx.sender_name, companies);
+                                        
+                                            return (
+                                                <>
+                                                    {/* FUZZY MATCH QUICK BUTTON (If it exists) */}
+                                                    {suggestion && (
+                                                    <button
+                                                        onClick={() => updateTx({ id: tx.id, status: 'matched', companyId: suggestion.id })}
+                                                        disabled={isPending}
+                                                        className="text-xs font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2 py-1 rounded shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1 shrink-0"
+                                                        title="Name match found"
+                                                    >
+                                                        {suggestion.name}
+                                                    </button>
+                                                    )}
+
+                                                    {/* MANUAL MATCH DROPDOWN (Always available as an escape hatch) */}
+                                                    <select 
+                                                    className="text-xs border border-slate-300 rounded px-1 py-1 bg-white text-slate-700 w-32 disabled:opacity-50"
                                                     onChange={(e) => {
                                                         if (e.target.value) {
-                                                            updateTx({ id: tx.id, status: 'matched', companyId: e.target.value })
+                                                        updateTx({ id: tx.id, status: 'matched', companyId: e.target.value });
                                                         }
                                                     }}
                                                     defaultValue=""
                                                     disabled={isPending}
-                                                >
-                                                    <option value="" disabled>Match to...</option>
+                                                    >
+                                                    <option value="" disabled>{suggestion ? 'Or pick manually...' : 'Match to...'}</option>
                                                     {companies.map(c => (
                                                         <option key={c.id} value={c.id}>{c.name}</option>
                                                     ))}
-                                                </select>
+                                                    </select>
 
-                                                <button
+                                                    {/* IGNORE BUTTON */}
+                                                    <button
                                                     onClick={() => updateTx({ id: tx.id, status: 'ignored' })}
                                                     disabled={isPending}
                                                     className="text-xs font-medium text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded transition-colors disabled:opacity-50"
-                                                >
+                                                    >
                                                     Ignore
-                                                </button>
-                                            </>
-                                        )}
-
+                                                    </button>
+                                                </>
+                                                );
+                                        })()}
                                         
                                         {tx.status === 'ignored' && (
                                             <button
