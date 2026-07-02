@@ -1,37 +1,30 @@
-import { Company, Contract, Transaction } from '@/schemas';
-import { isContractActiveInMonth } from '@/lib/calculations';
+import { Company } from '@/schemas';
 import { downloadCSV } from '@/lib/export';
+import { useMonthlySummary } from '@/hooks/useDashboard';
 
 interface SummaryBoardProps {
   companies: Company[];
-  contracts: Contract[];
-  transactions: Transaction[];
   year: number;
   month: number;
 }
 
-export function SummaryBoard({ companies, contracts, transactions, year, month }: SummaryBoardProps) {
+export function SummaryBoard({ companies, year, month }: SummaryBoardProps) {
+    const { data: rpcSummary = [] } = useMonthlySummary(year, month)
+    
     const summaryData = companies.map(company => {
-        const activeContracts = contracts.filter(c => 
-            c.company_id === company.id && isContractActiveInMonth(c, year, month)
-        );
+        const rpcRow = rpcSummary.find(r => r.company_id === company.id)
         
-        const expectedAmount = activeContracts.reduce((sum, c) => sum + c.monthly_amount, 0);
-
-        const companyTransactions = transactions.filter(t => 
-            t.matched_company_id === company.id && t.status === 'matched'
-        );
-        
-        const actualAmount = companyTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const expectedAmount = rpcRow?.expected_amount || 0
+        const actualAmount = rpcRow?.actual_amount || 0
         const difference = actualAmount - expectedAmount;
 
         return {
-            companyName: company.name,
+            companyName: company.name, 
             taxId: company.tax_id,
             expected: expectedAmount,
             actual: actualAmount,
             difference: difference,
-        };
+        }
     }).filter(row => row.expected > 0 || row.actual > 0) // Only include companies with expected or actual amounts
 
     summaryData.sort((a, b) => b.expected - a.expected);

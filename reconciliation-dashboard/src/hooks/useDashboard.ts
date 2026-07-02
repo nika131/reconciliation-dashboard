@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchCompanies, fetchContracts, fetchTransactions } from '@/services/queries';
+import { fetchCompanies, fetchMonthlySummary, fetchTransactions } from '@/services/queries';
 import { DashboardFilters } from '@/schemas';
 import { runAutoMatching, updateTransactionStatus } from '@/services/mutations';
 import { Transaction } from '@/schemas';
@@ -12,14 +12,6 @@ export function useCompanies() {
   return useQuery({
     queryKey: ['companies'],
     queryFn: fetchCompanies,
-    staleTime: Infinity, 
-  });
-}
-
-export function useContracts() {
-  return useQuery({
-    queryKey: ['contracts'],
-    queryFn: fetchContracts,
     staleTime: Infinity, 
   });
 }
@@ -39,7 +31,8 @@ export function useAutoMatch() {
   return useMutation({
       mutationFn: runAutoMatching,
       onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ['transactions'] })
+        queryClient.invalidateQueries({ queryKey: ['transactions'] })
+        queryClient.invalidateQueries({ queryKey: ['summary']})
       },
   })
 }
@@ -84,6 +77,15 @@ export function useUpdateTransaction() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['summary'] })
     }
+  })
+}
+
+export function useMonthlySummary(year: number, month: number) {
+  return useQuery({
+    queryKey: ['summary', year, month],
+    queryFn: () => fetchMonthlySummary(year, month),
+    placeholderData: (previousData) => previousData, 
   })
 }

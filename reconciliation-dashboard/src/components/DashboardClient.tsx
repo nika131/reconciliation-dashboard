@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from "react"
-import { useCompanies, useContracts, useTransactions, useAutoMatch } from "@/hooks/useDashboard"
+import { useCompanies, useTransactions, useAutoMatch } from "@/hooks/useDashboard"
 import { DashboardFilters } from "@/schemas"
 import { SummaryBoard } from "./SummaryBoard"
 import { TransactionTable } from "./TransactionTable"
 import { StatsBar } from "./StatsBar"
+import toast from "react-hot-toast"
 
 export function DashboardClient() {
 
@@ -17,10 +18,8 @@ export function DashboardClient() {
 
     const [searchTerm, setSearchTerm] = useState('')
 
-    const { data: companies = [], isLoading: loadingCos } = useCompanies()
-    const { data: contracts = [], isLoading: loadingContracts } = useContracts()
-    const { data: allTransactions = [], isLoading: loadingTx, isFetching } = useTransactions(filters)
-
+    const { data: companies = [] } = useCompanies()
+    const { data: allTransactions = [] } = useTransactions(filters)
     const { mutate: runMatching, isPending: isMatching } = useAutoMatch();
 
     const filteredCompanies = companies.filter(c => {
@@ -45,15 +44,10 @@ export function DashboardClient() {
     const handleMatchClick = () => {
         runMatching(undefined, {
             onSuccess: (count) => {
-                alert(`Successfully matched ${count} transactions!`)
-            },
-            onError: (err) => {
-                alert(`Error: ${err.message}`)
+              toast.success(`Successfully matched ${count} transactions!`)
             }
         })
     }
-
-    const isLoading = loadingCos || loadingContracts || loadingTx
 
     return (
     <div className="space-y-6">
@@ -93,7 +87,7 @@ export function DashboardClient() {
 
         <button 
           onClick={handleMatchClick}
-          disabled={isMatching || isFetching}
+          disabled={isMatching}
           className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           {isMatching ? 'Matching in DB...' : 'Run Auto-Matching'}
@@ -101,27 +95,18 @@ export function DashboardClient() {
 
       </div>
 
-      {/* --- TEMPORARY LOADING/DATA STATE --- */}
-      {isLoading ? (
-        <div className="p-8 text-center text-slate-500 animate-pulse">Loading dashboard data...</div>
-      ) : (
-        <>
-          <StatsBar transactions={allTransactions} />
+      <StatsBar transactions={allTransactions} />
 
-          <SummaryBoard
-            companies={filteredCompanies}
-            contracts={contracts}
-            transactions={allTransactions}
-            year={filters.year}
-            month={filters.month}
-          />
+      <SummaryBoard
+        companies={filteredCompanies}
+        year={filters.year}
+        month={filters.month}
+      />
 
-          <TransactionTable
-            transactions={filteredTransactions}
-            companies={companies}
-          />
-        </>
-      )}
+      <TransactionTable
+        transactions={filteredTransactions}
+        companies={companies}
+      />
 
     </div>
   );

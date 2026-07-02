@@ -29,15 +29,22 @@ export const TransactionSchema = z.object({
   matched_company_id: z.string().nullable(),
   match_method: z.string().nullable(),
   match_confidence: z.coerce.number().nullable(),
-});
+})
+
+export const MonthlySummarySchema = z.object({
+  company_id: z.string(),
+  expected_amount: z.coerce.number(),
+  actual_amount: z.coerce.number(),
+})
 
 export const DashboardFiltersSchema = z.object({
   year: z.number().int().min(2020).max(2100),
   month: z.number().int().min(1).max(12),
   status: z.enum(['all', 'matched', 'unmatched', 'ignored']).default('all'),
-});
+})
 
 export type Company = z.infer<typeof CompanySchema>;
 export type Contract = z.infer<typeof ContractSchema>;
 export type Transaction = z.infer<typeof TransactionSchema>;
 export type DashboardFilters = z.infer<typeof DashboardFiltersSchema>;
+export type MonthlySummaryRow = z.infer<typeof MonthlySummarySchema>;

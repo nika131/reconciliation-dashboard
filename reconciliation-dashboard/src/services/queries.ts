@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { CompanySchema, ContractSchema, TransactionSchema, DashboardFilters, DashboardFiltersSchema } from '@/schemas';
+import { CompanySchema, ContractSchema, TransactionSchema, DashboardFilters, DashboardFiltersSchema, MonthlySummarySchema } from '@/schemas';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
 import { z } from 'zod';
 
@@ -7,12 +7,6 @@ export async function fetchCompanies() {
     const { data, error } = await supabase.from('companies').select('*')
     if (error) throw new Error(error.message)
     return z.array(CompanySchema).parse(data)
-}
-
-export async function fetchContracts() {
-    const { data, error } = await supabase.from('contracts').select('*');
-    if (error) throw new Error(error.message)
-    return z.array(ContractSchema).parse(data)
 }
 
 export async function fetchTransactions(filters: DashboardFilters) {
@@ -34,4 +28,14 @@ export async function fetchTransactions(filters: DashboardFilters) {
     if (error) throw new Error(error.message)
 
     return z.array(TransactionSchema).parse(data || [])
+}
+
+export async function fetchMonthlySummary(year: number, month: number) {
+    const { data, error } = await supabase.rpc('get_monthly_summary', {
+        p_year: year,
+        p_month: month
+    })
+
+    if (error) throw new Error(error.message)
+    return z.array(MonthlySummarySchema).parse(data)
 }
