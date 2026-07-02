@@ -6,14 +6,6 @@ export const CompanySchema = z.object({
   tax_id: z.string(),
 });
 
-export const ContractSchema = z.object({
-  id: z.string(),
-  company_id: z.string(),
-  monthly_amount: z.coerce.number(), 
-  status: z.enum(['active', 'paused', 'ended']),
-  start_date: z.string(),
-  end_date: z.string().nullable(),
-});
 
 export const TransactionSchema = z.object({
   id: z.string(),
@@ -56,7 +48,6 @@ export const DashboardFiltersSchema = z.object({
 })
 
 export type Company = z.infer<typeof CompanySchema>;
-export type Contract = z.infer<typeof ContractSchema>;
 export type Transaction = z.infer<typeof TransactionSchema>;
 export type DashboardFilters = z.infer<typeof DashboardFiltersSchema>;
 export type MonthlySummaryRow = z.infer<typeof MonthlySummarySchema>;

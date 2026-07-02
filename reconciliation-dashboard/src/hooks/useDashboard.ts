@@ -38,7 +38,6 @@ export function useAutoMatch() {
       },
       onError: (err) => {
         console.error('Auto-match failed:', err)
-        toast.error('Auto-matching failed. Please try again.')
       }
   })
 }
@@ -91,7 +90,6 @@ export function useUpdateTransaction() {
         queryClient.setQueryData(key, data)
       })
       console.error('Optimistic UI rollback due to server error:', err)
-      toast.error('Failed to update transaction status.') 
     },
 
     onSettled: () => {

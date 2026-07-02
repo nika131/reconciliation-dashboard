@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { CompanySchema, ContractSchema, TransactionSchema, DashboardFilters, DashboardFiltersSchema, MonthlySummarySchema } from '@/schemas';
+import { CompanySchema, TransactionSchema, DashboardFilters, DashboardFiltersSchema, MonthlySummarySchema } from '@/schemas';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
 import { z } from 'zod';
 import { MonthlyStatsSchema, MonthlyStats } from '@/schemas';
@@ -38,7 +38,7 @@ export async function fetchTransactions(filters: DashboardFilters) {
         const safeSearch = search.replace(/[,\(\)]/g, '').trim()
 
         if (safeSearch){
-            query = query.or(`sender_name.ilike.%${search}%,sender_inn.ilike.%${search}%`)
+            query = query.or(`sender_name.ilike.%${safeSearch}%,sender_inn.ilike.%${safeSearch}%`)
         }
     }
     
