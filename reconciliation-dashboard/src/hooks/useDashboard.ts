@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchCompanies, fetchMonthlySummary, fetchTransactions } from '@/services/queries';
+import { fetchCompanies, fetchMonthlyStats, fetchMonthlySummary, fetchTransactions } from '@/services/queries';
 import { DashboardFilters } from '@/schemas';
 import { runAutoMatching, updateTransactionStatus } from '@/services/mutations';
 import { Transaction } from '@/schemas';
+import toast from 'react-hot-toast';
 
 type UpdateTxInput = 
-  | { id: string; status: 'matched'; companyId: string }
-  | { id: string; status: 'unmatched' | 'ignored' }
+| { id: string; status: 'matched'; companyId: string }
+| { id: string; status: 'unmatched' | 'ignored' }
 
 export function useCompanies() {
   return useQuery({
@@ -18,11 +19,11 @@ export function useCompanies() {
 
 export function useTransactions(filters: DashboardFilters) {
   return useQuery({
-    queryKey: ['transactions', filters.year, filters.month],
+    queryKey: ['transactions', filters.year, filters.month, filters.status, filters.page, filters.search],
     queryFn: () => fetchTransactions(filters),
     staleTime: 1000 * 60 * 5, 
     placeholderData: (previousData) => previousData, 
-  });
+  })
 }
 
 export function useAutoMatch() {
@@ -33,9 +34,22 @@ export function useAutoMatch() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['transactions'] })
         queryClient.invalidateQueries({ queryKey: ['summary']})
+        queryClient.invalidateQueries({ queryKey: ['stats'] })
       },
+      onError: (err) => {
+        console.error('Auto-match failed:', err)
+        toast.error('Auto-matching failed. Please try again.')
+      }
   })
 }
+
+
+type TxPage = { 
+  data: Transaction[]; 
+  totalCount: number; 
+  totalPages: number; 
+  currentPage: number 
+};
 
 export function useUpdateTransaction() {
   const queryClient = useQueryClient()
@@ -49,20 +63,24 @@ export function useUpdateTransaction() {
     onMutate: async (newTx) => {
       await queryClient.cancelQueries({ queryKey: ['transactions'] })
 
-      // Snapshot of previous value in case we need to roll back
-      const previousQueries = queryClient.getQueriesData<Transaction[]>({ queryKey: ['transactions'] });
+      //Snapshot of the new TxPage type
+      const previousQueries = queryClient.getQueriesData<TxPage>({ queryKey: ['transactions'] });
 
-      queryClient.setQueriesData<Transaction[]>({ queryKey: ['transactions'] }, (old) => {
+      queryClient.setQueriesData<TxPage>({ queryKey: ['transactions'] }, (old) => {
         if (!old) return old
-        return old.map((t) =>
-          t.id === newTx.id
-            ? { 
-                ...t, 
-                status: newTx.status, 
-                matched_company_id: 'companyId' in newTx ? newTx.companyId : null 
-              }
-            : t
-        )
+        
+        return {
+          ...old,
+          data: old.data.map((t) =>
+            t.id === newTx.id
+              ? { 
+                  ...t, 
+                  status: newTx.status, 
+                  matched_company_id: 'companyId' in newTx ? newTx.companyId : null 
+                }
+              : t
+          )
+        }
       })
 
       return { previousQueries }
@@ -73,11 +91,13 @@ export function useUpdateTransaction() {
         queryClient.setQueryData(key, data)
       })
       console.error('Optimistic UI rollback due to server error:', err)
+      toast.error('Failed to update transaction status.') 
     },
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['summary'] })
+      queryClient.invalidateQueries({ queryKey: ['summary'] }) 
+      queryClient.invalidateQueries({ queryKey: ['stats'] }) 
     }
   })
 }
@@ -88,4 +108,12 @@ export function useMonthlySummary(year: number, month: number) {
     queryFn: () => fetchMonthlySummary(year, month),
     placeholderData: (previousData) => previousData, 
   })
+}
+
+export function useMonthlyStats(year: number, month: number) {
+  return useQuery({
+    queryKey: ['stats', year, month],
+    queryFn: () => fetchMonthlyStats(year, month),
+    placeholderData: (previous) => previous,
+  });
 }

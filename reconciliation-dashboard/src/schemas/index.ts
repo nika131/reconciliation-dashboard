@@ -37,10 +37,22 @@ export const MonthlySummarySchema = z.object({
   actual_amount: z.coerce.number(),
 })
 
+export const MonthlyStatsSchema = z.object({
+  total_transactions: z.coerce.number(),
+  total_amount: z.coerce.number(),
+  matched_transactions: z.coerce.number(),
+  matched_amount: z.coerce.number(),
+  unmatched_transactions: z.coerce.number(),
+  unmatched_amount: z.coerce.number(),
+  ignored_transactions: z.coerce.number(),
+})
+
 export const DashboardFiltersSchema = z.object({
   year: z.number().int().min(2020).max(2100),
   month: z.number().int().min(1).max(12),
   status: z.enum(['all', 'matched', 'unmatched', 'ignored']).default('all'),
+  page: z.number().int().min(1).default(1),
+  search: z.string().optional(),
 })
 
 export type Company = z.infer<typeof CompanySchema>;
@@ -48,3 +60,4 @@ export type Contract = z.infer<typeof ContractSchema>;
 export type Transaction = z.infer<typeof TransactionSchema>;
 export type DashboardFilters = z.infer<typeof DashboardFiltersSchema>;
 export type MonthlySummaryRow = z.infer<typeof MonthlySummarySchema>;
+export type MonthlyStats = z.infer<typeof MonthlyStatsSchema>
