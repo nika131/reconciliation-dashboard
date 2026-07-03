@@ -6,6 +6,7 @@ import { DashboardFilters } from "@/schemas"
 import { SummaryBoard } from "./SummaryBoard"
 import { TransactionTable } from "./TransactionTable"
 import { StatsBar } from "./StatsBar"
+import toast from 'react-hot-toast';
 
 export function DashboardClient() {
 
@@ -45,10 +46,7 @@ export function DashboardClient() {
     const handleMatchClick = () => {
         runMatching(undefined, {
             onSuccess: (count) => {
-                alert(`Successfully matched ${count} transactions!`)
-            },
-            onError: (err) => {
-                alert(`Error: ${err.message}`)
+                toast.success(`Successfully matched ${count} transactions!`)
             }
         })
     }

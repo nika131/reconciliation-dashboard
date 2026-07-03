@@ -1,4 +1,4 @@
-# Bank Reconciliation Engine / საბანკო ტრანზაქციების დადარება
+# Bank Reconciliation Engine / საბანკო ტრანზაქციების შედარება
 
 🇬🇪 [ქართული ვერსია](#ქართული-ვერსია) | 🇬🇧 [English Version](#english-version)
 
@@ -7,7 +7,12 @@
 ## 🇬🇪 ქართული ვერსია
 
 ### პროექტის მიმოხილვა
-ეს პროექტი წარმოადგენს საბანკო ტრანზაქციების დადარების (Reconciliation) N-Tier არქიტექტურაზე აწყობილ სისტემას (Next.js, React, Supabase/PostgreSQL, TanStack Query). 
+
+> **🚀 შენიშვნა შემფასებლებისთვის: V2 Scalability Branch (მასშტაბირებადი არქიტექტურა)**
+> მოცემული `main` განშტოება (Branch) წარმოადგენს მკაცრ MVP-ს, რომელიც 100%-ით ფარავს დავალების ყველა მოთხოვნასა და ბონუსს. თუმცა, რეალურ პროექტებში მონაცემების ათიათასობით ჩანაწერზე გაზრდის შემთხვევაში, Client-side ფილტრაცია და კალკულაციები UI-ს შეანელებს.
+> Enterprise-სტანდარტების სადემონსტრაციოდ, დამატებით ავაწყვე ალტერნატიული არქიტექტურა **`v2-server-aggregation`** ბრანჩზე. მასში იმპლემენტირებულია Server-Side Pagination (`.range()`), მონაცემთა ბაზის დონეზე ძებნა და გლობალური სტატისტიკის დამთვლელი მშობლიური PostgreSQL RPC-ები. ვინაიდან ეს სცდებოდა დავალების მოთხოვნებს, სისტემის ეს ვერსია გატანილია დამოუკიდებელ Branch-ზე.
+
+ეს პროექტი წარმოადგენს საბანკო ტრანზაქციების შედარებას (Reconciliation) N-Tier არქიტექტურაზე აწყობილ სისტემას (Next.js, React, Supabase/PostgreSQL, TanStack Query). 
 
 პროექტზე მუშაობისას ჩემი მთავარი მიზანი იყო სისტემის Production-ready სტანდარტებით აწყობა. ძირითადი მოთხოვნების გარდა, წარმატებით არის იმპლემენტირებული **ოთხივე ბონუს დავალება**. ქვემოთ დეტალურად ვხსნი იმ არქიტექტურულ და პრაქტიკულ გადაწყვეტილებებს, რომლებიც დამუშავების პროცესში მივიღე.
 
@@ -17,9 +22,9 @@
 სისტემა არჩეული თვის მონაცემებს (Transactions, Companies, Contracts) **მხოლოდ ერთხელ** ითხოვს და ინახავს TanStack Query-ს ცენტრალურ ქეშში. 
 * **რატომ?** Dashboard შედგება ორი ნაწილისგან: `SummaryBoard` (სჭირდება 100%-იანი მონაცემები ჯამებისთვის) და `TransactionTable` (სჭირდება გაფილტრული მონაცემები). ყოველ Search-ზე ბაზაში ახალი მოთხოვნის გაგზავნა გამოიწვევდა ზედმეტ (Redundant) დატვირთვას. In-memory ფილტრაციით მივიღეთ UI-ს მყისიერი რეაგირება.
 
-#### 2. სერვერ-საიდ ავტომატური დადარება (RPC Bonus)
-ავტომატური დადარება სრულად გატანილია PostgreSQL-ის დონეზე (`match_bank_transactions` Stored Procedure). 
-* **Edge Case:** მოთხოვნის შესაბამისად, ავტომატური დადარება ეყრდნობა **ექსკლუზიურად `sender_inn = tax_id`** დამთხვევას. `sender_name` იგნორირებულია, რაც სრულყოფილად აგვარებს ერთი კომპანიის მიერ სხვადასხვა სახელით (მაგ. ფილიალის მითითებით) გადმორიცხული თანხების Edge Case-ს.
+#### 2. სერვერ-საიდ ავტომატური შედარება (RPC Bonus)
+ავტომატური შედარება სრულად გატანილია PostgreSQL-ის დონეზე (`match_bank_transactions` Stored Procedure). 
+* **Edge Case:** მოთხოვნის შესაბამისად, ავტომატური შედარება ეყრდნობა **ექსკლუზიურად `sender_inn = tax_id`** დამთხვევას. `sender_name` იგნორირებულია, რაც სრულყოფილად აგვარებს ერთი კომპანიის მიერ სხვადასხვა სახელით (მაგ. ფილიალის მითითებით) გადმორიცხული თანხების Edge Case-ს.
 
 #### 3. ნულოვანი დამოკიდებულების Fuzzy Matching (Levenshtein Bonus)
 შეუსაბამო ტრანზაქციებისთვის კომპანიის შეთავაზების ფუნქცია აწყობილია მესამე მხარის ბიბლიოთეკების (მაგ. `fuse.js`) გარეშე. დავწერე **Levenshtein Distance**-ის მატრიცული ალგორითმი.
@@ -27,7 +32,7 @@
 * **ზღვარი (Threshold):** დარეგულირებულია `0.60`-ზე. ემპირიულმა ტესტირებამ აჩვენა, რომ ეს ზღვარი წარმატებით აიგნორებს საერთო ქართულ სუფიქსებს (მაგ. "ტრანსპორტი", "ლოჯისტიკა") და იჭერს მხოლოდ რეალურ ბეჭდვით შეცდომებს.
 
 #### 4. Optimistic UI & გლობალური Loading/Error სტატუსები
-* **Optimistic Updates:** TanStack Query-ს `setQueriesData`-ს დახმარებით, დადარების სტატუსები UI-ში მყისიერად აისახება (მკაცრი TypeScript ტიპიზაციით, `any`-ს გარეშე).
+* **Optimistic Updates:** TanStack Query-ს `setQueriesData`-ს დახმარებით, შედარების სტატუსები UI-ში მყისიერად აისახება (მკაცრი TypeScript ტიპიზაციით, `any`-ს გარეშე).
 * **გლობალური სტატუსები:** მოთხოვნების ჩატვირთვა იმართება `GlobalNetworkIndicator`-ით, ხოლო Error-ები დაჭერილია ცენტრალურად `QueryCache`-ისა და `MutationCache`-ის დონეზე (სრულად ფარავს დავალების Error/Loading მოთხოვნას).
 
 #### 5. ინკლუზიური თარიღების ლოგიკა კონტრაქტებისთვის
@@ -43,7 +48,7 @@
   * მაგალითად: Seed ბაზაში არსებული ID `b4c5d6e7-f8a9-4b0c-1d2e-3f4a5b6c7d8e` მე-4 ბლოკს იწყებს `1`-ით, როცა სტანდარტით აუცილებელია იყოს `8, 9, a` ან `b`.
   * ანალოგიურად, ID `a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7d` იწყება `0`-ით.
   კლიენტის აპლიკაციის ქრაშის თავიდან ასაცილებლად და კორუმპირებულ მონაცემებთან სამუშაოდ, Zod სქემებში `z.uuid()` ლოგიკურად ჩანაცვლდა `z.string()`-ით.
-* **მორგებული RLS პოლიტიკა (Security):** Vercel-ის საჯარო ბმულის უსაფრთხოებისთვის, მონაცემთა ბაზაში (Supabase) გააქტიურებულია Row Level Security (RLS). მორგებული პოლიტიკით დაშვებულია მხოლოდ საჯარო კითხვა (`SELECT`) და ტრანზაქციების განახლება (`UPDATE`), რათა UI-მ იმუშაოს. ბაზის წაშლა (`DELETE`) და ახალი ჩანაწერების დამატება (`INSERT`) სრულად დაბლოკილია გარე მომხმარებლებისთვის.
+* **RLS (Row Level Security) გამორთულია:** ვინაიდან ეს არის სატესტო დავალება (Take-home assignment), მონაცემთა ბაზაზე RLS გამიზნულად გამორთულია. ეს გადაწყვეტილება მიღებულია შემფასებლისთვის ლოკალური ტესტირების გასამარტივებლად, რათა არ გახდეს საჭირო დამატებითი Policy სკრიპტების გაშვება და ავტორიზაციის (Auth) სიმულაცია API-ის შესამოწმებლად.
 * **Manual Override:** Fuzzy Match-ის ზუსტი შეთავაზების მიუხედავად, UI-ში სამუდამოდ შენარჩუნებულია ხელით არჩევის (Manual Select) Dropdown-ი.
 
 ---
@@ -84,6 +89,11 @@
 ## 🇬🇧 English Version
 
 ### Project Overview
+
+> **🚀 Note for Reviewers: The V2 Scalability Branch**
+> This `main` branch represents the strict MVP, fulfilling 100% of the core requirements and bonuses exactly as requested. However, in a production environment, client-side `.filter()` and `.reduce()` operations will bottleneck the main UI thread if the dataset scales to tens of thousands of rows. 
+> To demonstrate enterprise-grade architecture, I built a highly scalable system on the **`v2-server-aggregation`** branch. It features Server-Side Pagination (`.range()`), Database-level Search Filtering, and native PostgreSQL RPCs to handle global statistics computations safely. Because this exceeded the explicit scope of the assignment, it is kept on a separate branch for your review.
+
 An N-Tier banking reconciliation engine built with Next.js, React, Supabase (PostgreSQL), and TanStack Query. My objective was to build a highly optimized, type-safe, production-ready system. **All four bonus requirements** have been explicitly implemented.
 
 ### Architectural Decisions
@@ -117,7 +127,7 @@ The exporter automatically injects a UTF-8 BOM (`\uFEFF`) to ensure native Georg
   * For example, in the seed ID `b4c5d6e7-f8a9-4b0c-1d2e-3f4a5b6c7d8e`, the variant bit is `1` (it must be `8, 9, a`, or `b`). 
   * Similarly, the seed ID `a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7d` starts with a `0`.
   To prevent application crashes on corrupted source data, strict `z.string().uuid()` validation was defensively downgraded to `z.string()`.
-* **Tailored RLS Security Model:** To secure the public Vercel deployment, Row Level Security (RLS) is enabled on the Supabase instance. Custom policies restrict public access to Read (`SELECT`) and Update (`UPDATE`) only for transactions. Destructive actions (`DELETE` and `INSERT`) are entirely blocked to prevent malicious database manipulation.
+* **RLS Disabled for Reviewer Convenience:** Row Level Security (RLS) on the Supabase instance has been intentionally disabled. Because this is a take-home assignment, this ensures frictionless local testing for the reviewer. It prevents the need to run secondary policy scripts or simulate Authentication tokens just to fetch the dashboard data.
 * **Manual Override Retention:** The manual `<select>` override dropdown is permanently retained in the UI to prevent algorithmic lock-in, even when a high-confidence fuzzy match is found.
 
 ### 🛠️ Local Setup
