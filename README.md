@@ -1,155 +1,148 @@
 # Bank Reconciliation Engine / საბანკო ტრანზაქციების დადარება
 
+**🇬🇪** კომპანიას ჰყავს კლიენტები ყოველთვიურ კონტრაქტებზე. შემოსული საბანკო ტრანზაქციები უნდა დადარდეს ამ კონტრაქტებთან, რათა ფინანსურმა დეპარტამენტმა მარტივად გააკონტროლოს ვინ გადაიხადა, ვის დაავიწყდა და ვინ გადმორიცხა არასწორი თანხა.
+**🇬🇧** A company has clients on monthly contracts. Incoming bank transactions must be matched against these contracts so the finance department can identify settled, pending, and incorrect payments.
+
 🔗 **[Live Demo / ცოცხალი ვერსია](https://reconciliation-dashboard-green.vercel.app/)**
 
 🇬🇪 [ქართული ვერსია](#ქართული-ვერსია) | 🇬🇧 [English Version](#english-version)
 
 ---
 
-## 🇬🇪 ქართული ვერსია
+### Design Philosophy: Scale vs. MVP / დიზაინის ფილოსოფია
+If this system were guaranteed to only ever handle the 89 rows provided in the seed data, fetching all records once and filtering them in-memory (the approach in the `main` branch) is the most efficient and responsive architecture. However, real banking environments handle tens of thousands of records. At that scale, downloading and processing the full dataset in the browser eventually becomes CPU- and memory-bound.
 
-### პროექტის მიმოხილვა
+Because of this reality, this project is split into two architectures:
 
-> **🚀 შენიშვნა შემფასებლებისთვის: V2 Scalability Branch (მასშტაბირებადი არქიტექტურა)**
-> მოცემული `main` განშტოება (Branch) წარმოადგენს მკაცრ MVP-ს, რომელიც 100%-ით ფარავს დავალების ყველა მოთხოვნასა და ბონუსს. თუმცა, რეალურ პროექტებში მონაცემების ათიათასობით ჩანაწერზე გაზრდის შემთხვევაში, Client-side ფილტრაცია და კალკულაციები UI-ს შეანელებს.
-> Enterprise-სტანდარტების სადემონსტრაციოდ, დამატებით ავაწყვე ალტერნატიული არქიტექტურა **`v2-server-aggregation`** ბრანჩზე. მასში იმპლემენტირებულია Server-Side Pagination (`.range()`), მონაცემთა ბაზის დონეზე ძებნა და გლობალური სტატისტიკის დამთვლელი მშობლიური PostgreSQL RPC-ები. ვინაიდან ეს სცდებოდა დავალების მოთხოვნებს, სისტემის ეს ვერსია გატანილია დამოუკიდებელ Branch-ზე.
-
-ეს პროექტი წარმოადგენს საბანკო ტრანზაქციების შედარებას (Reconciliation) N-Tier არქიტექტურაზე აწყობილ სისტემას (Next.js, React, Supabase/PostgreSQL, TanStack Query). 
-
-პროექტზე მუშაობისას ჩემი მთავარი მიზანი იყო სისტემის Production-ready სტანდარტებით აწყობა. ძირითადი მოთხოვნების გარდა, წარმატებით არის იმპლემენტირებული **ოთხივე ბონუს დავალება**. ქვემოთ დეტალურად ვხსნი იმ არქიტექტურულ და პრაქტიკულ გადაწყვეტილებებს, რომლებიც დამუშავების პროცესში მივიღე.
-
-### არქიტექტურული გადაწყვეტილებები
-
-#### 1. State Management & კლიენტის მხარეს ფილტრაცია
-სისტემა არჩეული თვის მონაცემებს (Transactions, Companies, Contracts) **მხოლოდ ერთხელ** ითხოვს და ინახავს TanStack Query-ს ცენტრალურ ქეშში. 
-* **რატომ?** Dashboard შედგება ორი ნაწილისგან: `SummaryBoard` (სჭირდება 100%-იანი მონაცემები ჯამებისთვის) და `TransactionTable` (სჭირდება გაფილტრული მონაცემები). ყოველ Search-ზე ბაზაში ახალი მოთხოვნის გაგზავნა გამოიწვევდა ზედმეტ (Redundant) დატვირთვას. In-memory ფილტრაციით მივიღეთ UI-ს მყისიერი რეაგირება.
-
-#### 2. სერვერ-საიდ ავტომატური შედარება (RPC Bonus)
-ავტომატური შედარება სრულად გატანილია PostgreSQL-ის დონეზე (`match_bank_transactions` Stored Procedure). 
-* **Edge Case:** მოთხოვნის შესაბამისად, ავტომატური შედარება ეყრდნობა **ექსკლუზიურად `sender_inn = tax_id`** დამთხვევას. `sender_name` იგნორირებულია, რაც სრულყოფილად აგვარებს ერთი კომპანიის მიერ სხვადასხვა სახელით (მაგ. ფილიალის მითითებით) გადმორიცხული თანხების Edge Case-ს.
-
-#### 3. ნულოვანი დამოკიდებულების Fuzzy Matching (Levenshtein Bonus)
-შეუსაბამო ტრანზაქციებისთვის კომპანიის შეთავაზების ფუნქცია აწყობილია მესამე მხარის ბიბლიოთეკების (მაგ. `fuse.js`) გარეშე. დავწერე **Levenshtein Distance**-ის მატრიცული ალგორითმი.
-* **ნორმალიზაცია:** ალგორითმი აშორებს იურიდიულ პრეფიქსებს (შპს, სს), პუნქტუაციას და სივრცეებს.
-* **ზღვარი (Threshold):** დარეგულირებულია `0.60`-ზე. ემპირიულმა ტესტირებამ აჩვენა, რომ ეს ზღვარი წარმატებით აიგნორებს საერთო ქართულ სუფიქსებს (მაგ. "ტრანსპორტი", "ლოჯისტიკა") და იჭერს მხოლოდ რეალურ ბეჭდვით შეცდომებს.
-
-#### 4. Optimistic UI & გლობალური Loading/Error სტატუსები
-* **Optimistic Updates:** TanStack Query-ს `setQueriesData`-ს დახმარებით, შედარების სტატუსები UI-ში მყისიერად აისახება (მკაცრი TypeScript ტიპიზაციით, `any`-ს გარეშე).
-* **გლობალური სტატუსები:** მოთხოვნების ჩატვირთვა იმართება `GlobalNetworkIndicator`-ით, ხოლო Error-ები დაჭერილია ცენტრალურად `QueryCache`-ისა და `MutationCache`-ის დონეზე (სრულად ფარავს დავალების Error/Loading მოთხოვნას).
-
-#### 5. ინკლუზიური თარიღების ლოგიკა კონტრაქტებისთვის
-კონტრაქტების აქტიურობა მოწმდება ინკლუზიური საზღვრებით (`start_date <= endOfMonth` & `end_date >= startOfMonth`). 
-* **Edge Cases:** ეს იდეალურად ფარავს სატესტო მონაცემებში არსებულ რთულ შემთხვევებს. მაგალითად, `Rustavi Trans`-ის მეორე კონტრაქტი სრულდება ზუსტად თვის პირველ რიცხვში (`2026-04-01`), სისტემა მას ლოგიკურად მაინც აპრილის თვეში აქტიურად თვლის. ასევე სწორად მუშავდება შუა თვეში (`Safe Transport` - `05-15`) შეჩერებული კონტრაქტები. თუ კონტრაქტის სტატუსია `paused/ended`, მაგრამ `end_date` აკლია, დამატებულია Defensive შემოწმება.
-
-#### 6. CSV ექსპორტი (Bonus)
-მონაცემთა ექსპორტი იყენებს `\uFEFF` (UTF-8 BOM), რათა ქართული შრიფტი Microsoft Excel-ში უშეცდომოდ გაიხსნას და დაცულია RFC 4180 სტანდარტი.
-
-### დათმობები და პრაქტიკული გადაწყვეტილებები (Trade-offs)
-
-* **UUID ვალიდაციის ადაპტაცია (Critical Fix):** ბაზასთან ინტეგრაციისას Zod-მა დააბრუნა `invalid_format` ქრაში. სკრიპტულმა ანალიზმა აჩვენა, რომ მოწოდებულ Seed ფაილებში არსებული UUID-ები არღვევს მკაცრ **RFC 4122 v4** სტანდარტს (კერძოდ, Variant Bit არასწორია). 
-  * მაგალითად: Seed ბაზაში არსებული ID `b4c5d6e7-f8a9-4b0c-1d2e-3f4a5b6c7d8e` მე-4 ბლოკს იწყებს `1`-ით, როცა სტანდარტით აუცილებელია იყოს `8, 9, a` ან `b`.
-  * ანალოგიურად, ID `a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7d` იწყება `0`-ით.
-  კლიენტის აპლიკაციის ქრაშის თავიდან ასაცილებლად და კორუმპირებულ მონაცემებთან სამუშაოდ, Zod სქემებში `z.uuid()` ლოგიკურად ჩანაცვლდა `z.string()`-ით.
-* **RLS (Row Level Security) გამორთულია:** ვინაიდან ეს არის სატესტო დავალება (Take-home assignment), მონაცემთა ბაზაზე RLS გამიზნულად გამორთულია. ეს გადაწყვეტილება მიღებულია შემფასებლისთვის ლოკალური ტესტირების გასამარტივებლად, რათა არ გახდეს საჭირო დამატებითი Policy სკრიპტების გაშვება და ავტორიზაციის (Auth) სიმულაცია API-ის შესამოწმებლად.
-* **Manual Override:** Fuzzy Match-ის ზუსტი შეთავაზების მიუხედავად, UI-ში სამუდამოდ შენარჩუნებულია ხელით არჩევის (Manual Select) Dropdown-ი.
+* **`main`**: The MVP. Handles filtering and dataset calculations in-memory on the client side.
+* **`v2-server-aggregation`**: The scalable alternative. Moves pagination (`.range()`) and summary statistics to native PostgreSQL RPCs, ensuring the browser UI remains responsive regardless of database size. *(Live Demo: [https://reconciliation-dashboard-git-v2-server-aggregation-nika8.vercel.app/])*
 
 ---
 
-## 🛠️ გაშვების ინსტრუქცია (Local Setup)
+### Project Structure / სტრუქტურა
+```text
+src/
+├── app/
+│   ├── api/                 # Server-only API routes (Write Operations)
+│   │   ├── match/route.ts
+│   │   └── transactions/[id]/route.ts
+│   ├── page.tsx             # Main dashboard UI
+│   └── providers.tsx        # React Query caching layer
+├── components/              # UI Components (Tables, Modals, Summary)
+├── hooks/                   # React Query hooks
+├── lib/
+│   ├── calculations.ts      # Client-side math logic
+│   ├── export.ts            # CSV generation
+│   ├── fuzzy.ts             # Levenshtein distance engine
+│   ├── supabase-admin.ts    # Admin Supabase instance (Service Role - Writes)
+│   └── supabase.ts          # Client Supabase instance (Read-only)
+├── schemas/                 # Zod validation types & schemas
+└── services/                # API/Supabase communication (Queries & Mutations)
+```
 
-1. **დააინსტალირეთ დამოკიდებულებები:**
+### Environment Variables / გარემოს ცვლადები
+| Variable | Environment | Purpose |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Client & Server | Database API URL. |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Client (Browser) | Public key. Used for frontend read operations. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server Only | Secret key. Used by Next.js API routes to execute secure writes. |
 
-        npm install
+---
 
-2. **მონაცემთა ბაზის კონფიგურაცია (Supabase SQL Editor):**
-   მიმდევრობით გაუშვით შემდეგი ფაილები, რათა აეწყოს ბაზა და RPC ფუნქციები:
-   * `sql/seed_schema.sql` (ქმნის ცხრილებს და შეაქვს კომპანიები/კონტრაქტები).
-   * `sql/seed_transactions.sql` (შეაქვს 89 საბანკო ტრანზაქცია).
-   * `sql/match_function.sql` (ქმნის `match_bank_transactions()` ფუნქციას Auto-Matching-სთვის).
+## 🇬🇪 ქართული ვერსია
 
-3. **გარემოს ცვლადები:**
-   დააკოპირეთ `.env.example` ფაილი, დაარქვით `.env.local` და ჩასვით თქვენი Supabase გასაღებები.
+### არქიტექტურა და იმპლემენტაცია
 
-4. **გაუშვით სერვერი:**
+**1. State Management და ფილტრაცია**
+სისტემა ითხოვს მიმდინარე თვის ტრანზაქციებსა და კონტრაქტებს ერთხელ და ინახავს მათ TanStack Query-ს ქეშში. ჯამური სტატისტიკის დასათვლელად საჭიროა სრული მონაცემები, ხოლო ცხრილისთვის — გაფილტრული. კლიენტის მხარეს ფილტრაცია თავიდან ირიდებს ყოველ Search-ზე ბაზაში ზედმეტი მოთხოვნების გაგზავნას.
 
-        npm run dev
+**2. ავტომატური დადარება (RPC Bonus)**
+ავტომატური შედარება ხდება ბაზის დონეზე PostgreSQL ფუნქციით (`match_bank_transactions`). შედარება ხდება ექსკლუზიურად `sender_inn = tax_id` პრინციპით. `sender_name` იგნორირებულია, რაც აგვარებს ერთი კომპანიის მიერ სხვადასხვა სახელით (მაგ. ფილიალის მითითებით) გადმორიცხული თანხების Edge Case-ს.
 
-### 🧪 Fuzzy Match ტესტირების გზამკვლევი (Reviewer Guide)
-მოწოდებულ საწყის (Seed) მონაცემებში არსებული 12 შეუსაბამო ტრანზაქცია ეკუთვნის ბაზისთვის სრულიად უცნობ კომპანიებს. ალგორითმი მათემატიკურად სწორად უარყოფს მათ. ტიპოგრაფიული შეცდომების (Typos) დასატესტად, გაუშვით ეს მცირე SQL სკრიპტი:
+**3. Fuzzy Matching ნულოვანი დამოკიდებულებით (Levenshtein Bonus)**
+მესამე მხარის ბიბლიოთეკების გარეშე დაწერილია Levenshtein Distance-ის მატრიცული ალგორითმი.
+* **ნორმალიზაცია:** იშლება იურიდიული პრეფიქსები (შპს, სს), პუნქტუაცია და სივრცეები.
+* **შედეგები:** `0.60` ზღვარი აიგნორებს საერთო ქართულ სუფიქსებს და იჭერს ბეჭდვით შეცდომებს.
 
-    INSERT INTO bank_transactions (doc_key, entry_date, amount, sender_name, sender_inn, status)
-    VALUES (
-      'TYPO-TEST-001', '2026-06-15', 1200.00, 
-      'შპს ეკკკო ტარნსპოტი (ფილიალი)', -- "შპს ეკო ტრანსპორტი"-ს ტიპო
-      '000000000', 'unmatched'
-    );
+**4. Optimistic UI & გლობალური სტატუსები**
+TanStack Query-ს `setQueriesData`-ს დახმარებით, სტატუსების ცვლილება UI-ში მყისიერად აისახება. იტვირთება `GlobalNetworkIndicator`-ით, ხოლო Error-ები იმართება ცენტრალურად Cache დონეზე.
 
-*(Dashboard-ზე გაფილტრეთ **June** > **Unmatched**. ეკრანზე გამოჩნდება სისტემის მიერ გენერირებული ყვითელი შეთავაზების ღილაკი).*
+**5. ინკლუზიური თარიღების ლოგიკა**
+კონტრაქტების აქტიურობა მოწმდება ინკლუზიური საზღვრებით (`start_date <= endOfMonth` & `end_date >= startOfMonth`). მაგალითად, `Rustavi Trans`-ის კონტრაქტი სრულდება 1 აპრილს (`2026-04-01`), სისტემა მას თვლის აპრილის თვეში აქტიურ კონტრაქტად.
+
+**6. CSV ექსპორტი (Bonus)**
+მონაცემთა ექსპორტი იყენებს `\uFEFF` (UTF-8 BOM), რათა ქართული შრიფტი Microsoft Excel-ში სწორად გაიხსნას (RFC 4180 სტანდარტი).
+
+### უსაფრთხოება და დათმობები (Architecture & Trade-offs)
+
+* **უსაფრთხოება (Database & API):** ბაზის დონეზე RLS გამორთულია რევიუერისთვის ლოკალური ტესტირების გასამარტივებლად. თუმცა, საჯარო `anon` გასაღებს აქვს მხოლოდ წაკითხვის უფლება, რადგან Postgres-ის დონეზე მას წართმეული (Revoked) აქვს `INSERT`, `UPDATE` და `DELETE` უფლებები. ყველა Write ოპერაცია გადის სერვერულ API-ებზე (`/api/match`, `/api/transactions/[id]`), სადაც გამოიყენება `service_role` გასაღები და მკაცრი Zod ვალიდაცია. შენიშვნა: ეს Route-ები არ არის ავტორიზაციით დაცული (ნებისმიერს შეუძლია მათი პირდაპირ გამოძახება). ეს მიდგომა სრულად ხურავს "გაჟონილი anon key"-ის რისკს, თუმცა არ წარმოადგენს სრულ წვდომის კონტროლს.
+* **UUID ვალიდაცია:** საწყის ბაზაში (Seed Data) არსებული UUID-ები არღვევს **RFC 4122 v4** სტანდარტს (მაგ: მე-4 ბლოკის Variant Bit არასწორია). მონაცემების დასამუშავებლად და აპლიკაციის ქრაშის თავიდან ასაცილებლად, კლიენტის Zod სქემებში `z.uuid()` შეიცვალა `z.string()`-ით.
+* **Manual Override:** UI-ში შენარჩუნებულია ხელით არჩევის (Manual Select) Dropdown-ი.
 
 ---
 
 ## 🇬🇧 English Version
 
-### Project Overview
+### Architecture & Implementation
 
-> **🚀 Note for Reviewers: The V2 Scalability Branch**
-> This `main` branch represents the strict MVP, fulfilling 100% of the core requirements and bonuses exactly as requested. However, in a production environment, client-side `.filter()` and `.reduce()` operations will bottleneck the main UI thread if the dataset scales to tens of thousands of rows. 
-> To demonstrate enterprise-grade architecture, I built a highly scalable system on the **`v2-server-aggregation`** branch. It features Server-Side Pagination (`.range()`), Database-level Search Filtering, and native PostgreSQL RPCs to handle global statistics computations safely. Because this exceeded the explicit scope of the assignment, it is kept on a separate branch for your review.
+**1. State Management & Filtering**
+The system fetches the current month's data once and caches it globally. The analytics board requires 100% of the data to calculate totals, while the grid requires a filtered subset. In-memory client-side filtering ensures UI response times without redundant database hits.
 
-An N-Tier banking reconciliation engine built with Next.js, React, Supabase (PostgreSQL), and TanStack Query. My objective was to build a highly optimized, type-safe, production-ready system. **All four bonus requirements** have been explicitly implemented.
+**2. Auto-Matching (RPC Bonus)**
+Auto-matching operates directly on the database via a PostgreSQL stored procedure. It matches strictly on `sender_inn = tax_id`. The `sender_name` is ignored, resolving edge cases where a company sends payments using varying branch names.
 
-### Architectural Decisions
+**3. Zero-Dependency Fuzzy Matching (Levenshtein Bonus)**
+Implemented a custom Levenshtein distance matrix without external libraries.
+* **Normalization:** Strips Georgian corporate prefixes (შპს, სს), punctuation, and whitespace.
+* **Threshold Tuning:** Set to `0.60`. Testing confirmed this rejects common logistics suffixes while catching typos.
 
-#### 1. Single Source of Truth & Client-Side Filtering
-The system fetches the current month's data **exactly once** and caches it globally. The analytics board requires 100% of the data to calculate totals, while the grid requires a filtered subset. In-memory client-side filtering ensures instant UI response times without redundant database hits.
+**4. Optimistic UI & Global States**
+Using TanStack Query's `setQueriesData`, user actions update the UI optimistically. Centralized error boundaries within the cache level and a `GlobalNetworkIndicator` handle loading and error states.
 
-#### 2. Server-Side Auto-Matching (RPC Bonus)
-The core auto-matching logic operates directly on the database via a PostgreSQL stored procedure.
-* **Edge Case Handling:** Per requirements, auto-matching relies **strictly on `sender_inn = tax_id`**. The `sender_name` is completely ignored during auto-matching, which flawlessly resolves edge cases where the same company sends payments using varying names/branches.
+**5. Inclusive Date Range Math**
+Contract overlap logic uses inclusive mathematical bounds (`start_date <= endOfMonth`). For example, `Rustavi Trans` has a contract ending on `2026-04-01`. Inclusive bounds ensure it is counted as active for the month of April.
 
-#### 3. Zero-Dependency Fuzzy Matching (Levenshtein Bonus)
-Implemented a custom Dynamic Programming Levenshtein distance engine without relying on external libraries.
-* **Normalization:** Strips Georgian corporate prefixes, punctuation, and whitespace.
-* **Threshold Tuning:** Set to `0.60`. Testing confirmed this avoids false positives caused by highly common Georgian logistics suffixes while reliably catching severe typos.
+**6. Robust CSV Export Engine (Bonus)**
+The exporter injects a UTF-8 BOM (`\uFEFF`) to ensure native Georgian Mkhedruli rendering in Microsoft Excel.
 
-#### 4. Optimistic UI & Global States
-* **Optimistic Updates:** By leveraging TanStack Query's `setQueriesData`, user actions update the UI optimistically using strict TypeScript discriminated unions.
-* **Global States:** Centralized error boundaries within `QueryCache`/`MutationCache` and a `GlobalNetworkIndicator` efficiently fulfill the assignment's loading/error state requirement.
+### Security Architecture & Trade-offs
 
-#### 5. Inclusive Date Range Math
-The contract overlap logic uses inclusive mathematical bounds (`start_date <= endOfMonth`). 
-* **Edge Cases:** Resolves ambiguous scenarios natively. For example, `Rustavi Trans` has a contract ending exactly on `2026-04-01`. Inclusive bounds ensure it is rightfully counted as active for April. Added a defensive check for `paused/ended` contracts missing an `end_date`.
+* **Database & API Security:** Row Level Security (RLS) is disabled for reviewer convenience. However, the public `anon` key is strictly read-only because `INSERT`, `UPDATE`, and `DELETE` privileges have been explicitly revoked from the `anon` role in Postgres. All write operations pass through Next.js server endpoints (`/api/match`, `/api/transactions/[id]`) using the `service_role` key and strict Zod validation. Note: these API routes are not behind authentication (any client could call them directly). This setup successfully closes the "leaked anon key" attack surface, but it does not implement full access control.
+* **Relaxed UUID Validation:** The provided seed data contains IDs that violate strict **RFC 4122 v4** standards (the variant bit in the 4th block is incorrect). To process this data without triggering application crashes, `z.string().uuid()` was downgraded to `z.string()`.
+* **Manual Override Retention:** The manual `<select>` override dropdown is permanently retained in the UI.
 
-#### 6. Robust CSV Export Engine (Bonus)
-The exporter automatically injects a UTF-8 BOM (`\uFEFF`) to ensure native Georgian Mkhedruli rendering in Microsoft Excel, explicitly adhering to RFC 4180 standards.
+---
 
-### Concessions & Trade-offs
+## 🛠️ Local Setup / გაშვების ინსტრუქცია 
 
-* **Relaxed UUID Schema Validation (Critical Fix):** During live integration testing, Zod threw fatal `invalid_format` errors. A programmatic analysis of the provided seed data revealed that the generated IDs violate strict **RFC 4122 v4** standards (specifically the variant bit in the 4th block). 
-  * For example, in the seed ID `b4c5d6e7-f8a9-4b0c-1d2e-3f4a5b6c7d8e`, the variant bit is `1` (it must be `8, 9, a`, or `b`). 
-  * Similarly, the seed ID `a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7d` starts with a `0`.
-  To prevent application crashes on corrupted source data, strict `z.string().uuid()` validation was defensively downgraded to `z.string()`.
-* **RLS Disabled for Reviewer Convenience:** Row Level Security (RLS) on the Supabase instance has been intentionally disabled. Because this is a take-home assignment, this ensures frictionless local testing for the reviewer. It prevents the need to run secondary policy scripts or simulate Authentication tokens just to fetch the dashboard data.
-* **Manual Override Retention:** The manual `<select>` override dropdown is permanently retained in the UI to prevent algorithmic lock-in, even when a high-confidence fuzzy match is found.
+1. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
 
-### 🛠️ Local Setup
+2. **Database Configuration (Supabase SQL Editor):**
+   Run the following files sequentially to build the database and RPC functions:
+   * `sql/seed_schema.sql` (Creates tables and seeds companies & contracts)
+   * `sql/seed_transactions.sql` (Seeds 89 bank transactions)
+   * `sql/match_function.sql` (Creates the `match_bank_transactions()` RPC)
 
-1. Run `npm install`
-2. **Set up the database (Supabase SQL Editor, in order):**
-   * Run `sql/seed_schema.sql` (creates tables, seeds companies & contracts)
-   * Run `sql/seed_transactions.sql` (seeds 89 bank transactions)
-   * Run `sql/match_function.sql` (creates the `match_bank_transactions()` RPC)
-3. Copy `.env.example` to `.env.local` and add your Supabase keys.
-4. Run `npm run dev`
+3. **Environment Variables:**
+   Copy `.env.example` to `.env.local` and fill in all three values from the table above — including `SUPABASE_SERVICE_ROLE_KEY` (found in Supabase → Settings → API), which is required for the Auto-Matching and manual-match/ignore endpoints to execute properly.
 
-### 🧪 Reviewer Testing Guide: Fuzzy Match
-The 12 unmatched transactions in the provided seed data belong to completely unknown entities. To test the engine's typo-correction capabilities, please run the following SQL script:
+4. **Run the Server:**
+   ```bash
+   npm run dev
+   ```
 
-    INSERT INTO bank_transactions (doc_key, entry_date, amount, sender_name, sender_inn, status)
-    VALUES (
-      'TYPO-TEST-001', '2026-06-15', 1200.00, 
-      'შპს ეკკკო ტარნსპოტი (ფილიალი)', -- Typo of "შპს ეკო ტრანსპორტი"
-      '000000000', 'unmatched'
-    );
+### 🧪 Fuzzy Match Testing Guide (Reviewer Guide)
+The 12 unmatched transactions in the provided seed data belong to unknown entities. To test the typo-correction engine against the dataset, execute this SQL script in Supabase:
 
-*(Filter the dashboard by **June** > **Unmatched** to see the algorithmic amber suggestion button appear).*
+```sql
+INSERT INTO bank_transactions (doc_key, entry_date, amount, sender_name, sender_inn, status)
+VALUES (
+    'TYPO-TEST-001', '2026-06-15', 1200.00, 
+    'შპს ეკკკო ტარნსპოტი (ფილიალი)', -- Typo of "შპს ეკო ტრანსპორტი"
+    '000000000', 'unmatched'
+);
+```
+*(Filter the dashboard by **June > Unmatched** to see the algorithmic suggestion).*

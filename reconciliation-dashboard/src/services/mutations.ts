@@ -1,34 +1,25 @@
-import { supabase } from "@/lib/supabase";
 
-export async function runAutoMatching() {
-    const { data, error } = await supabase.rpc('match_bank_transactions')
-    if (error) throw new Error(error.message)
-    return data as number;
+export async function runAutoMatching(): Promise<number> {
+  const res = await fetch('/api/match', { method: 'POST' })
+  const json = await res.json()
+  
+  if (!res.ok) throw new Error(json.error)
+  return json.matched as number
 }
 
 export async function updateTransactionStatus(
-    id: string,
-    status: 'matched' | 'unmatched' | 'ignored',
-    companyId?: string
-) {
-    const updatePayload = status === 'unmatched' || status === 'ignored' 
-        ? { 
-            status, 
-            matched_company_id: null, 
-            match_method: null, 
-            match_confidence: null 
-        }
-        : { 
-            status, 
-            matched_company_id: companyId,
-            match_method: 'manual' 
-        }
-
-    const { error } = await supabase
-        .from('bank_transactions')
-        .update(updatePayload)
-        .eq('id', id)
-    
-    if (error) throw new Error(error.message)
-    return true;
+  id: string, 
+  status: 'matched' | 'unmatched' | 'ignored', 
+  companyId?: string
+): Promise<void> {
+  const res = await fetch(`/api/transactions/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(status === 'matched' ? { status, companyId } : { status }),
+  })
+  
+  if (!res.ok) {
+    const json = await res.json()
+    throw new Error(json.error)
+  }
 }
